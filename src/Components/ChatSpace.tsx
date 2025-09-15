@@ -14,6 +14,7 @@ interface Message {
     createdAt: string;
 }
 
+
 function ChatSpace({ userName, userId }: ChatSpaceProps) {
     const { user: currentUser } = useAuth()
     const [messages, setMessages] = useState<Message[]>([])
@@ -92,7 +93,7 @@ function ChatSpace({ userName, userId }: ChatSpaceProps) {
     }
 
     // scrolling to the bottom for new message
-    const messageEndRef = useRef(null)
+    const messageEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -102,6 +103,9 @@ function ChatSpace({ userName, userId }: ChatSpaceProps) {
 
     return (
         <div className='bg-gray-950 text-white h-screen w-[50%] flex flex-col'>
+
+            {error && <div>Error occured while getting the messages </div>}
+
             <div className='bg-gray-800 p-4 flex items-center justify-between'>
                 <div className='flex'>
                     <img className='w-12 rounded-full brightness-50' src="profile-icon.png" alt="" />
@@ -120,9 +124,9 @@ function ChatSpace({ userName, userId }: ChatSpaceProps) {
                     {messages.map((message) => (
                         <div
                             key={message.id}
-                            className={`flex ${message.senderId === currentUser.uid ? 'justify-end' : 'justify-start'}`}
+                            className={`flex ${message.senderId === currentUser!.uid ? 'justify-end' : 'justify-start'}`}
                         >
-                            <div className={`max-w-[70%] p-3 rounded-2xl text-lg ${message.senderId === currentUser.uid
+                            <div className={`max-w-[70%] p-3 rounded-2xl text-lg ${message.senderId === currentUser!.uid
                                 ? 'bg-gray-800 text-white rounded-br-md'
                                 : 'bg-gray-900 text-white rounded-bl-md'
                                 }`} ref={messageEndRef}>

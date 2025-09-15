@@ -85,6 +85,7 @@ function ChatList({ userName }: ChatListProps) {
     setOpenmenu(!openMenu)
   }
   return (
+
     <div className='relative bg-gray-900 text-white h-screen w-[25%]'>
       <div className='p-3 flex items-center justify-between border-b-1 border-gray-800'>
         <div className='flex items-center'>

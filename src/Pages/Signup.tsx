@@ -49,6 +49,9 @@ function Signup() {
 
         <div className='bg-gray-950 h-screen flex'>
             <div className='m-auto bg-gray-900 border-solid border-2 border-gray-800 rounded-4xl w-xl text-center p-4'>
+
+                {error && <div>Error occured while loading the signup page</div>}
+
                 <img className='w-20 m-auto my-10' src="chat-logo.png" alt="" />
 
                 <div className='bg-gray-950 flex justify-center w-84 m-auto rounded-full text-white my-8'>
