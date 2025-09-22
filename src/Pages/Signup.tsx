@@ -21,7 +21,7 @@ function Signup() {
             }
 
             await signIn(email, password)
-            navigate('/Chat')
+            navigate('/chats')
             alert('user signed in succesfully')
         }
         catch (error) {
@@ -35,7 +35,7 @@ function Signup() {
         e.preventDefault()
         try {
             await googleLogin();
-            navigate('/Chat')
+            navigate('/chats')
             alert('user signed in succesfully');
         }
         catch (error) {
@@ -47,46 +47,90 @@ function Signup() {
 
     return (
 
-        <div className='bg-gray-950 h-screen flex'>
-            <div className='m-auto bg-gray-900 border-solid border-2 border-gray-800 rounded-4xl w-xl text-center p-4'>
-
-                {error && <div>Error occured while loading the signup page</div>}
-
-                <img className='w-20 m-auto my-10' src="chat-logo.png" alt="" />
-
-                <div className='bg-gray-950 flex justify-center w-84 m-auto rounded-full text-white my-8'>
-                    <div className='bg-gray-900 p-4 rounded-full m-1 w-42'>Sign Up</div>
-                    <div className='p-4 rounded-full m-1 w-42 cursor-pointer'><NavLink to={'/Login'}>Log In</NavLink></div>
-                </div>
-
-                <h1 className='text-4xl text-white'>Create Your Account!</h1>
-                <p className='text-gray-400'>Already have an Account? <NavLink className='font-bold' to={'/Login'}>Log In</NavLink></p>
-
-                <div onClick={handleGoogleLogin} className='flex justify-center items-center mx-auto my-6 p-1 border-2 w-84 rounded-xl border-gray-600 cursor-pointer'>
-                    <img src="google.png" className='w-6 m-2' alt="" />
-                    <p className='text-xl text-white'>Continue with Google</p>
-                </div>
-
-                <p className='text-gray-400'>OR</p>
-
-                <div className='w-84 m-auto my-8'>
-                    <div className='bg-gray-950 text-gray-300 flex p-1 my-2 rounded-lg justify-left w-full'>
-                        <img className='w-6 m-2' src="mail.png" alt="" />
-                        <input className='outline-0 w-full' type="email" placeholder='Email Address' value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div className='bg-gray-950 min-h-screen flex items-center justify-center p-4'>
+            <div className='bg-gray-900 border-2 border-gray-800 rounded-3xl w-full max-w-md mx-auto text-center p-6 sm:p-8'>
+                {error && (
+                    <div className='bg-red-900/20 border border-red-500 text-red-400 p-3 rounded-lg mb-6 text-sm'>
+                        Error occurred while loading the signup page
                     </div>
-                    <div className='bg-gray-950 text-gray-300 flex p-1 my-3 rounded-lg justify-left w-full'>
-                        <img className='w-6 m-2' src="user.png" alt="" />
-                        <input className='outline-0 w-full' type="text" placeholder='Username' value={username} onChange={(e) => setUsername(e.target.value)} />
+                )}
+                <img
+                    className='w-16 sm:w-20 mx-auto mb-8'
+                    src="chat-logo.png"
+                    alt="Chat Logo"
+                />
+                <div className='bg-gray-950 flex justify-center rounded-full text-white mb-8 p-1'>
+                    <div className='bg-gray-900 py-3 px-6 rounded-full flex-1 text-sm sm:text-base'>
+                        Sign Up
                     </div>
-                    <div className='bg-gray-950 text-gray-300 flex p-1 my-3 rounded-lg justify-left w-full'>
-                        <img className='w-6 m-2' src="password.png" alt="" />
-                        <input className='outline-0 w-full' type="password" placeholder='Password' value={password} onChange={(e) => setPassword(e.target.value)} />
-                    </div>
-
-                    <div className='my-6'>
-                        <button onClick={handleSignUp} className='bg-white text-black p-3 w-full font-semibold rounded-xl cursor-pointer'>Sign Up</button>
+                    <div className='py-3 px-6 ms-1 rounded-full flex-1 cursor-pointer text-sm sm:text-base hover:bg-gray-800 transition-colors'>
+                        <NavLink to={'/Login'}>Log In</NavLink>
                     </div>
                 </div>
+                <h1 className='text-2xl sm:text-3xl lg:text-4xl text-white mb-2 font-bold'>
+                    Create Your Account!
+                </h1>
+                <p className='text-gray-400 text-sm sm:text-base mb-6'>
+                    Already have an Account?
+                    <NavLink className='font-bold text-white hover:text-gray-300 ml-1' to={'/Login'}>
+                        Log In
+                    </NavLink>
+                </p>
+                <button
+                    onClick={handleGoogleLogin}
+                    className='flex justify-center items-center w-full p-3 border-2 border-gray-600 rounded-xl cursor-pointer hover:border-gray-500 hover:bg-gray-800 transition-all duration-200 mb-6'
+                >
+                    <img src="google.png" className='w-5 sm:w-6 mr-3' alt="Google" />
+                    <span className='text-base sm:text-lg text-white'>Continue with Google</span>
+                </button>
+
+                <div className='flex items-center mb-6'>
+                    <div className='flex-1 h-px bg-gray-600'></div>
+                    <span className='px-4 text-gray-400 text-sm sm:text-base'>OR</span>
+                    <div className='flex-1 h-px bg-gray-600'></div>
+                </div>
+
+                <div className='space-y-2 mb-6'>
+                    <div className='bg-gray-950 text-gray-300 flex items-center p-3 rounded-lg w-full'>
+                        <img className='w-5 sm:w-6 mr-3 flex-shrink-0' src="mail.png" alt="Email" />
+                        <input
+                            className='outline-none w-full bg-transparent text-white placeholder-gray-400 text-sm sm:text-base'
+                            type="email"
+                            placeholder='Email Address'
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </div>
+
+                    <div className='bg-gray-950 text-gray-300 flex items-center p-3 rounded-lg w-full'>
+                        <img className='w-5 sm:w-6 mr-3 flex-shrink-0' src="user.png" alt="User" />
+                        <input
+                            className='outline-none w-full bg-transparent text-white placeholder-gray-400 text-sm sm:text-base'
+                            type="text"
+                            placeholder='Username'
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    </div>
+
+                    <div className='bg-gray-950 text-gray-300 flex items-center p-3 rounded-lg w-full'>
+                        <img className='w-5 sm:w-6 mr-3 flex-shrink-0' src="password.png" alt="Password" />
+                        <input
+                            className='outline-none w-full bg-transparent text-white placeholder-gray-400 text-sm sm:text-base'
+                            type="password"
+                            placeholder='Password'
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleSignUp}
+                    className='bg-white text-black p-3 sm:p-4 w-full font-semibold rounded-xl cursor-pointer hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 text-sm sm:text-base'
+                >
+                    Sign Up
+                </button>
             </div>
         </div>
 
