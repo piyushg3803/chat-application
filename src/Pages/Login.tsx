@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom';
-import { googleLogin, logIn } from '../backend/authUtil';
+import { completeProfile, googleLogin, logIn } from '../backend/authUtil';
 
 function Login() {
 
@@ -14,6 +14,7 @@ function Login() {
 
         try {
             await logIn(email, password);
+            // await completeProfile()
             navigate('/chats')
             alert('User Logged in Successfully')
         }

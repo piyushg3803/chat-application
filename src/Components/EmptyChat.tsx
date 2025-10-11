@@ -2,7 +2,7 @@ import React from 'react'
 
 function EmptyChat() {
   return (
-    <div className='hidden sm:flex sm:w-1/2 lg:w-[65%] bg-gray-950 text-white h-screen flex-col items-center justify-center p-8 relative overflow-hidden'>
+    <div className='hidden sm:flex sm:w-1/2 lg:w-[65%] bg-gray-950 text-white h-screen flex-col items-center justify-center p-8 relative overflow-hidden -z-10'>
       <div className='text-center max-w-md mx-auto relative z-10'>
         <h1 className='text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent'>
           Welcome to Chat

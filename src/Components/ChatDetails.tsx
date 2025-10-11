@@ -1,187 +1,295 @@
-import { collection, getDocs, query } from "firebase/firestore";
-import { db } from "../backend/firebaseAuth";
+import { doc, onSnapshot, } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { useMediaQuery } from "react-responsive";
+import { useNavigate } from "react-router-dom";
+import { db } from "../backend/firebaseAuth";
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
+import { deleteConversation } from "../backend/chatUtil";
+import { getAuth } from "@firebase/auth";
 
 interface ChatListProp {
-  chatId: string;
-  toCloseChatDetails?: () => void;
-  className?: string
+  userData: { displayName: string, id: string, email: string, lastSeen: string, location: string, createdAt: string }
+  showDetails: boolean
+  setShowDetails?: (show: boolean) => void;
 }
 
-interface User {
-  id: string;
-  name: string;
-}
+function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
+  const isMobile = useMediaQuery({ maxWidth: 641 })
+  const navigate = useNavigate()
+  const [userStatus, setUserStatus] = useState<{ displayName: string; online: boolean; lastSeen: string; location: string; about: string; createdAt: string }>({
+    displayName: "Username",
+    online: false,
+    lastSeen: 'Offline',
+    about: "About the user!",
+    location: "Where user lives",
+    createdAt: "When user joined the ChatApp"
+  })
 
-function ChatDetails({ chatId, toCloseChatDetails }: ChatListProp) {
-
-  const [userData, setUserData] = useState<User | null>(null)
+  const auth = getAuth()
+  const currentUser = auth.currentUser?.uid
 
   useEffect(() => {
+    if (!userData?.id) return;
 
-    const getUserDetails = async () => {
-      try {
-        const q = query(collection(db, "users"))
-        const querySnapshot = await getDocs(q)
+    const userRef = doc(db, "users", userData?.id)
 
-        const doc = querySnapshot.docs.find(doc => doc.id === chatId)
+    console.log("user ref", userRef);
 
-        if (doc) {
-          const data = { id: doc.id, ...doc.data() } as User
-          setUserData(data)
+
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data()
+        const lastSeenTimeStamp = data.lastSeen.toDate()
+
+        console.log("user from the details", data);
+
+        let formattedLastSeen = 'Offline'
+
+        if (data.online) {
+          formattedLastSeen = "Online"
         }
-        else {
-          console.log("User Details Not found");
-          setUserData(null)
+        else if (lastSeenTimeStamp) {
+          if (isToday(lastSeenTimeStamp)) {
+            formattedLastSeen = `Last seen ${formatDistanceToNow(lastSeenTimeStamp, { addSuffix: true })}`
+          }
+          else if (isYesterday(lastSeenTimeStamp)) {
+            formattedLastSeen = `Last seen yesterday ${format(lastSeenTimeStamp, 'h:mm aaa')}`
+          }
+          else {
+            formattedLastSeen = `Last seen ${format(lastSeenTimeStamp, 'h:mm aaa')}`
+          }
         }
+
+        setUserStatus({
+          displayName: data.displayName,
+          online: data.online || false,
+          lastSeen: formattedLastSeen,
+          about: data.about,
+          location: data.location,
+          createdAt: data.createdAt
+        })
+        console.log("user created", data.createdAt);
       }
-      catch (err) {
-        console.error("Error Occured while getting user details", err);
-      }
+
+
+    })
+    return () => unsubscribe()
+  }, [userData?.id])
+
+  const closeChatDetails = () => {
+    if (isMobile) {
+      navigate('/chats/chatspace')
+      setShowDetails(false)
     }
-    console.log(userData);
+    else {
+      setShowDetails(false)
+    }
+  }
 
-    getUserDetails()
-  }, [chatId, userData])
+  // Helper function to convert Firestore Timestamp to readable date
+  const formatFirestoreDate = (timestamp: any): string => {
+    try {
+      // Handle Firestore Timestamp object
+      if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+        const date = new Date(timestamp.seconds * 1000);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      }
 
+      // Handle ISO string
+      if (typeof timestamp === 'string') {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+          });
+        }
+      }
+
+      // Handle Date object
+      if (timestamp instanceof Date) {
+        return timestamp.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      }
+
+      return 'Recently';
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Unknown';
+    }
+  };
+
+  const deleteChat = async (e: MouseEvent) => {
+    e.preventDefault();
+
+    try {
+      await deleteConversation([currentUser, userData?.id].sort().join('_'))
+      console.log(userData.id);
+      alert("Conversation deleted!")
+      navigate('/chats')
+      console.log("Error Occured while deleteing this confo");
+      
+    }
+    catch (error) {
+      console.log("Error deleting the conversation", error);
+    }
+  }
 
   return (
-    <div className={`bg-gray-900 text-white h-screen w-full sm:w-[45%] lg:w-[25%] fixed sm:relative top-0 right-0 z-50 sm:z-auto transform transition-transform duration-300 ease-in-out`}>
-      {/* Header */}
-      <div className='p-3 sm:p-4 border-b border-gray-800 flex items-center justify-between'>
-        <h1 className='text-xl sm:text-2xl font-semibold'>Chat Details</h1>
+    <>
+      <div className={`${showDetails ? 'translate-x-0' : 'translate-x-full'} bg-gray-900 text-white h-screen w-full sm:w-[45%] lg:w-[30%] fixed top-0 right-0 z-50 transform transition-transform duration-300 ease-in-out flex flex-col`}>
+        {/* Header */}
+        <div className='p-4 border-b border-gray-700 flex items-center justify-between bg-gray-800/50 backdrop-blur-sm'>
+          <h1 className='text-xl sm:text-2xl font-bold'>Contact Info</h1>
 
-        {/* Close button for mobile and tablet */}
-        <button
-          className='lg:hidden p-2 hover:bg-gray-800 rounded-full transition-colors duration-200'
-          onClick={() => toCloseChatDetails}
-          aria-label="Close chat details"
-        >
-          <svg className='w-6 h-6' fill='currentColor' viewBox='0 0 20 20'>
-            <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
-          </svg>
-        </button>
-      </div>
-
-      {/* Profile Section */}
-      <div className='p-4 sm:p-6'>
-        <div className='flex flex-col items-center'>
-          <div className='relative'>
-            <img
-              className='w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 brightness-50 rounded-full border-4 border-gray-700'
-              src="/profile-icon.png"
-              alt="Contact profile"
-            />
-            {/* Online status */}
-            <div className='absolute bottom-4 right-4 w-6 h-6 bg-green-500 border-4 border-gray-900 rounded-full'></div>
-          </div>
-
-          <div className='text-center mt-4 sm:mt-6'>
-            <h1 className='text-2xl sm:text-3xl lg:text-4xl font-semibold'>Contact 1</h1>
-            <p className='text-base sm:text-lg text-zinc-400 mt-2'>Online</p>
-
-            {/* Quick action buttons */}
-            <div className='flex gap-4 mt-4 sm:mt-6'>
-              <button className='bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-colors duration-200'>
-                <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-                  <path fillRule='evenodd' d='M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z' clipRule='evenodd' />
-                </svg>
-              </button>
-              <button className='bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-colors duration-200'>
-                <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-                  <path d='M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z' />
-                </svg>
-              </button>
-              <button className='bg-gray-800 hover:bg-gray-700 p-3 rounded-full transition-colors duration-200'>
-                <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-                  <path fillRule='evenodd' d='M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z' clipRule='evenodd' />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <button
+            className='p-2 hover:bg-gray-700 rounded-full transition-all duration-200 active:scale-95'
+            onClick={closeChatDetails}
+            aria-label="Close chat details"
+          >
+            <svg className='w-6 h-6' fill='currentColor' viewBox='0 0 20 20'>
+              <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+            </svg>
+          </button>
         </div>
-      </div>
 
-      {/* Contact Information */}
-      <div className='border-t border-gray-800 flex-1 overflow-y-auto scrollbar-hide'>
-        <div className='p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8'>
-          {/* About Section */}
-          <div>
-            <h2 className='text-lg sm:text-xl lg:text-2xl font-semibold mb-2 flex items-center'>
-              <svg className='w-5 h-5 mr-3 text-gray-400' fill='currentColor' viewBox='0 0 20 20'>
-                <path fillRule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z' clipRule='evenodd' />
-              </svg>
-              About
-            </h2>
-            <p className='text-base sm:text-lg lg:text-xl text-gray-300 leading-relaxed'>
-              {/* About the contact - This is a longer description that explains more about this person and their interests. */}
-            </p>
-          </div>
+        {/* Profile Section */}
+        <div className='p-6 sm:p-8 border-b border-gray-700 bg-gradient-to-b from-gray-800/30 to-transparent'>
+          <div className='flex flex-col items-center'>
+            <div className='relative group'>
+              <img
+                className='w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 rounded-full border-4 border-gray-700 object-cover shadow-xl group-hover:border-gray-600 transition-all duration-300'
+                src={userData.profileImg || "/profile-icon.png"}
+                alt={`${userData.displayName}'s profile`}
+              />
 
-          {/* Email Section */}
-          <div>
-            <h2 className='text-lg sm:text-xl lg:text-2xl font-semibold mb-2 flex items-center'>
-              <svg className='w-5 h-5 mr-3 text-gray-400' fill='currentColor' viewBox='0 0 20 20'>
-                <path d='M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z' />
-                <path d='M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z' />
-              </svg>
-              Email
-            </h2>
-            <p className='text-base sm:text-lg lg:text-xl text-gray-300'>
-              contact1@example.com
-            </p>
-          </div>
-
-          {/* Phone Section */}
-          <div>
-            <h2 className='text-lg sm:text-xl lg:text-2xl font-semibold mb-2 flex items-center'>
-              <svg className='w-5 h-5 mr-3 text-gray-400' fill='currentColor' viewBox='0 0 20 20'>
-                <path d='M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z' />
-              </svg>
-              Phone
-            </h2>
-            <p className='text-base sm:text-lg lg:text-xl text-gray-300'>
-              +1 (555) 123-4567
-            </p>
-          </div>
-
-          {/* Media Section */}
-          {/* <div>
-            <h2 className='text-lg sm:text-xl lg:text-2xl font-semibold mb-4 flex items-center'>
-              <svg className='w-5 h-5 mr-3 text-gray-400' fill='currentColor' viewBox='0 0 20 20'>
-                <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
-              </svg>
-              Shared Media
-            </h2>
-            <div className='grid grid-cols-3 gap-2'>
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className='aspect-square bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors duration-200 cursor-pointer'>
-                  <svg className='w-6 h-6 text-gray-500' fill='currentColor' viewBox='0 0 20 20'>
-                    <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
-                  </svg>
+              {/* Online status indicator */}
+              {!userStatus.lastSeen ? (
+                <div className='absolute bottom-2 right-2 sm:bottom-4 sm:right-4'>
+                  <div className='w-5 h-5 sm:w-6 sm:h-6 bg-green-500 border-4 border-gray-900 rounded-full'></div>
+                  <div className='absolute inset-0 w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full animate-ping opacity-75'></div>
                 </div>
-              ))}
+              ) : (
+                <div className='absolute bottom-2 right-2 sm:bottom-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 bg-gray-600 border-4 border-gray-900 rounded-full'></div>
+              )}
             </div>
-          </div> */}
+
+            <div className='text-center mt-6'>
+              <h2 className='text-2xl sm:text-3xl font-bold mb-2'>
+                {userData.displayName || 'Unknown User'}
+              </h2>
+              <p className='text-sm sm:text-base text-gray-400 flex items-center justify-center gap-2'>
+                {!userStatus.lastSeen ? (
+                  <>
+                    <span className='w-2 h-2 bg-green-500 rounded-full'></span>
+                    Active now
+                  </>
+                ) : (
+                  <>
+                    <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
+                      <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z' clipRule='evenodd' />
+                    </svg>
+                    Last seen {userStatus.lastSeen}
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Information - Scrollable */}
+        <div className='flex-1 overflow-y-auto scrollbar-hide'>
+          <div className='p-4 sm:p-6 space-y-6'>
+            {/* About Section */}
+            {userData.about && (
+              <div className='bg-gray-800/30 rounded-xl p-4 hover:bg-gray-800/50 transition-colors duration-200'>
+                <h3 className='text-sm font-semibold text-gray-400 mb-2 flex items-center'>
+                  <svg className='w-4 h-4 mr-2' fill='currentColor' viewBox='0 0 20 20'>
+                    <path fillRule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z' clipRule='evenodd' />
+                  </svg>
+                  About
+                </h3>
+                <p className='text-base text-gray-200 leading-relaxed'>
+                  {userData.about}
+                </p>
+              </div>
+            )}
+
+            {/* Email Section */}
+            <div className='bg-gray-800/30 rounded-xl p-4 hover:bg-gray-800/50 transition-colors duration-200'>
+              <h3 className='text-sm font-semibold text-gray-400 mb-2 flex items-center'>
+                <svg className='w-4 h-4 mr-2' fill='currentColor' viewBox='0 0 20 20'>
+                  <path d='M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z' />
+                  <path d='M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z' />
+                </svg>
+                Email
+              </h3>
+              <p className='text-base text-gray-200 break-all'>
+                {userData.email || 'Not provided'}
+              </p>
+            </div>
+
+            {/* Location Section */}
+            {userData.location && (
+              <div className='bg-gray-800/30 rounded-xl p-4 hover:bg-gray-800/50 transition-colors duration-200'>
+                <h3 className='text-sm font-semibold text-gray-400 mb-2 flex items-center'>
+                  <svg className='w-4 h-4 mr-2' fill='currentColor' viewBox='0 0 20 20'>
+                    <path fillRule='evenodd' d='M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z' clipRule='evenodd' />
+                  </svg>
+                  Location
+                </h3>
+                <p className='text-base text-gray-200'>
+                  {userData.location}
+                </p>
+              </div>
+            )}
+
+            {userData.createdAt && (
+              <div className='text-center py-4'>
+                <p className='text-sm text-gray-500 opacity-60'>
+                  Joined {formatFirestoreDate(userData.createdAt)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons - Fixed at bottom */}
+        <div className='border-t border-gray-700 p-4 bg-gray-800/50 backdrop-blur-sm'>
+          <div className='flex justify-between items-center gap-3'>
+            <button className='flex-1 bg-gray-700 hover:bg-gray-600 p-3 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'>
+              <svg className='w-5 h-5 text-gray-400 group-hover:text-white transition-colors' fill='currentColor' viewBox='0 0 20 20'>
+                <path fillRule='evenodd' d='M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z' clipRule='evenodd' />
+              </svg>
+              <span className='text-sm font-medium hidden sm:inline'>Mute</span>
+            </button>
+
+            <button className='flex-1 bg-gray-700 hover:bg-gray-600 p-3 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'>
+              <svg className='w-5 h-5 text-gray-400 group-hover:text-white transition-colors' fill='currentColor' viewBox='0 0 20 20'>
+                <path fillRule='evenodd' d='M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z' clipRule='evenodd' />
+              </svg>
+              <span className='text-sm font-medium hidden sm:inline'>Block</span>
+            </button>
+
+            <button className='flex-1 bg-red-900/50 hover:bg-red-800 p-3 rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'
+              onClick={deleteChat}>
+              <svg className='w-5 h-5 text-red-400 group-hover:text-white transition-colors' fill='currentColor' viewBox='0 0 20 20'>
+                <path fillRule='evenodd' d='M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z' clipRule='evenodd' />
+              </svg>
+              <span className='text-sm font-medium hidden sm:inline'>Delete</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Action Buttons */}
-      <div className='border-t border-gray-800 p-4 flex justify-between bg-gray-900'>
-        <div className='flex gap-2'>
-          <button className='p-3 hover:bg-gray-800 rounded-full transition-colors duration-200 group' title="Mute notifications">
-            <img className='w-5 h-5 sm:w-6 sm:h-6 group-hover:brightness-125' src="/mute.png" alt="Mute" />
-          </button>
-          <button className='p-3 hover:bg-gray-800 rounded-full transition-colors duration-200 group' title="Block contact">
-            <img className='w-5 h-5 sm:w-6 sm:h-6 group-hover:brightness-125' src="/block.png" alt="Block" />
-          </button>
-        </div>
-
-        <button className='p-3 hover:bg-red-800 rounded-full transition-colors duration-200 group' title="Delete conversation">
-          <img className='w-5 h-5 sm:w-6 sm:h-6 group-hover:brightness-125' src="/delete.png" alt="Delete" />
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 

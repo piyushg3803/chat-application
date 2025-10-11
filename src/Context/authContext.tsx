@@ -15,14 +15,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("setting up auth state listener");
     const unsubscribe = onAuthStateChange((fbUser) => {
+      console.log("user from context", fbUser);
       setUser(fbUser);
       setLoading(false);
     });
-    return unsubscribe;
+    return () => {
+      console.log("cleaning up auth state listener");
+      unsubscribe();
+    }
   }, []);
 
   const value = useMemo(() => ({ user, loading }), [user, loading]);
+
+  // if (loading) {
+  //   return <div>Loading...</div>;
+  // }
 
   return (
     <ErrorBoundary fallbackRender={() => <div>Something went wrong with authentication</div>}>

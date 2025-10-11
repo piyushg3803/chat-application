@@ -2,240 +2,460 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createOrGetChatRoom, listenMessages, sendMessage } from '../backend/chatUtil';
 import { useAuth } from '../Context/authContext';
 import { useNavigate } from 'react-router-dom';
+import { useMediaQuery } from 'react-responsive';
+import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../backend/firebaseAuth';
+import EmojiPicker from 'emoji-picker-react'
+import '../index.css'
 
 interface ChatSpaceProps {
-    userName: string;
-    userId: string;
-    handleChatDetails?: () => void;
-    toggleChat: () => void;
+   userData: { displayName: string, id: string, email: string, lastSeen: string, createdAt: string };
+   userName: string;
+   userId: string;
+   showDetails: boolean;
+   setShowDetails: (show: boolean) => void;
+   setShowChat: (show: boolean) => void;
 }
 
 interface Message {
-    id: string;
-    text: string;
-    senderId: string;
-    createdAt: string;
+   id: string;
+   text: string;
+   senderId: string;
+   createdAt: string;
 }
 
-function ChatSpace({ userName, userId, handleChatDetails, toggleChat }: ChatSpaceProps) {
-    const { user: currentUser } = useAuth()
-    const [messages, setMessages] = useState<Message[]>([])
-    const [YourMsg, setYourMsg] = useState('')
-    const [chatRoomId, setChatRoomId] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null)
-    const navigate = useNavigate();
+function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatSpaceProps) {
+   const { user: currentUser } = useAuth()
+   const [searchTerm, setSearchTerm] = useState('')
+   const [matchedIndexes, setMatchedIndexes] = useState<number[]>([]);
+   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+   const [filteredMsg, setFilteredMsg] = useState('')
+   const [showSearch, setShowSearch] = useState(false)
+   const [messages, setMessages] = useState<Message[]>([])
+   const [YourMsg, setYourMsg] = useState('')
+   const [showPicker, setShowPicker] = useState(false)
+   const [chatRoomId, setChatRoomId] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const navigate = useNavigate();
+   const [userStatus, setUserStatus] = useState<{ online: boolean; lastSeen: string; }>({
+      online: false,
+      lastSeen: 'Offline'
+   });
 
-    // const { chatId } = useParams<{ chatId?: string }>()
+   const isMobile = useMediaQuery({ maxWidth: 641 })
+   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-    // creating or retrieving the chatRoom
-    useEffect(() => {
-        const initializeChat = async () => {
-            if (!userId || !currentUser?.uid) return;
+   useEffect(() => {
+      if (!userData?.id) return;
 
-            try {
-                const chatRoom = await createOrGetChatRoom(currentUser.uid, userId);
-                console.log("Chat Room Created/Retreived", chatRoom);
-                setChatRoomId(chatRoom.id)
-                console.log("Chat Room Id", chatRoom.id);
+      const userRef = doc(db, "users", userData.id);
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+         if (doc.exists()) {
+            const data = doc.data();
+            const lastSeenTimestamp = data.lastSeen?.toDate();
+
+            let formattedLastSeen = 'Offline';
+
+            if (data.online) {
+               formattedLastSeen = 'Online';
+            } else if (lastSeenTimestamp) {
+               if (isToday(lastSeenTimestamp)) {
+                  formattedLastSeen = `Last seen ${formatDistanceToNow(lastSeenTimestamp, { addSuffix: true })}`;
+               } else if (isYesterday(lastSeenTimestamp)) {
+                  formattedLastSeen = `Last seen yesterday at ${format(lastSeenTimestamp, 'h:mm aaa')}`;
+               } else {
+                  formattedLastSeen = `Last seen ${format(lastSeenTimestamp, 'h:mm aaa')}`;
+               }
             }
-            catch (error) {
-                console.error("Error initializing chat:", error);
-                setError("Failed to initialize chat!")
-            }
-        }
 
-        if (userName && userId) {
-            initializeChat();
-        } else {
-            console.log("Chat Could not be initialized");
-        }
-
-    }, [userName, userId, currentUser?.uid])
-
-    // sending and retrieving the messages
-    useEffect(() => {
-        if (!chatRoomId) return;
-
-        try {
-            const unsubscribe = listenMessages(chatRoomId, (newMessage: Message[]) => {
-                console.log('Received Message:', newMessage);
-                setMessages(newMessage)
+            setUserStatus({
+               online: data.online || false,
+               lastSeen: formattedLastSeen
             });
+         }
+      });
 
-            return () => {
-                unsubscribe();
-            }
-        }
-        catch (error) {
+      return () => unsubscribe();
+   }, [userData?.id]);
+
+   console.log("user Status", userStatus);
+
+   const pickerRef = useRef<HTMLDivElement>(null)
+
+   const addEmoji = (emojiData: any) => {
+      setYourMsg(prev => prev + emojiData.emoji)
+   }
+
+   useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+         if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+            setShowPicker(false)
+         }
+      }
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+   })
+
+   const handleSearch = async (term: string) => {
+      setSearchTerm(term);
+
+      if (!term.trim()) {
+         setFilteredMsg([]);
+         return;
+      }
+
+      // Local filter first
+      const localMatches = messages.filter(m =>
+         m.text?.toLowerCase().includes(term.toLowerCase())
+      );
+
+      setFilteredMsg(localMatches)
+   };
+
+   const highlightSearch = (text: string, search: string) => {
+      if (!search) return text;
+
+      const regex = new RegExp(`(${search})`, "gi");
+      const parts = text.split(regex);
+
+      return parts.map((part, i) =>
+         part.toLowerCase() === search.toLowerCase() ? (
+            <span key={i} className="bg-yellow-300/40 px-1 rounded">{part}</span>
+         ) : (
+            part
+         )
+      );
+   };
+
+   useEffect(() => {
+      if (!searchTerm.trim()) {
+         setMatchedIndexes([]);
+         setCurrentMatchIndex(0);
+         return;
+      }
+
+      const matches = messages
+         .map((msg, index) =>
+            msg.text?.toLowerCase().includes(searchTerm.toLowerCase()) ? index : null
+         )
+         .filter((index): index is number => index !== null);
+
+      setMatchedIndexes(matches);
+      setCurrentMatchIndex(0);
+
+      // Auto-scroll to the first match if available
+      if (matches.length > 0) {
+         const firstMatch = matches[0];
+         const msgId = messages[firstMatch].id;
+         messageRefs.current[msgId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+   }, [searchTerm, messages]);
+
+   const goToNextMatch = () => {
+      if (matchedIndexes.length === 0) return;
+      const nextIndex = (currentMatchIndex + 1) % matchedIndexes.length;
+      setCurrentMatchIndex(nextIndex);
+
+      const msgId = messages[matchedIndexes[nextIndex]].id;
+      messageRefs.current[msgId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+   };
+
+   const goToPrevMatch = () => {
+      if (matchedIndexes.length === 0) return;
+      const prevIndex =
+         (currentMatchIndex - 1 + matchedIndexes.length) % matchedIndexes.length;
+      setCurrentMatchIndex(prevIndex);
+
+      const msgId = messages[matchedIndexes[prevIndex]].id;
+      messageRefs.current[msgId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+   }
+
+   console.log("User Data from space", userData)
+
+   // creating or retrieving the chatRoom
+   useEffect(() => {
+      const initializeChat = async () => {
+         if (!userData.id || !currentUser?.uid) return;
+
+         try {
+            const chatRoom = await createOrGetChatRoom(currentUser.uid, userData.id);
+            console.log("Chat Room Created/Retreived", chatRoom);
+            setChatRoomId(chatRoom.id)
+            console.log("Chat Room Id", chatRoom.id);
+         }
+         catch (error) {
+            console.error("Error initializing chat:", error);
+            setError("Failed to initialize chat!")
+         }
+      }
+
+      if (userData.displayName && userData.id) {
+         initializeChat();
+      } else {
+         console.log("Chat Could not be initialized");
+      }
+
+   }, [userData.displayName, userData.id, currentUser?.uid])
+
+   // sending and retrieving the messages
+   useEffect(() => {
+      if (!chatRoomId) return;
+
+      let unsubscribe: (() => void) | undefined;
+
+      const setupMessageListener = async () => {
+         try {
+            unsubscribe = listenMessages(chatRoomId, (newMessage: Message[]) => {
+               console.log('Received Message:', newMessage);
+               setMessages(newMessage)
+            });
+         }
+         catch (error) {
             console.error("Error listening the messages", error);
             setError('Failed to load messages')
-        }
+         }
+      };
 
-    }, [chatRoomId])
+      setupMessageListener();
 
-    // function to send message
-    const handleSend = async () => {
-        if (!currentUser || !chatRoomId || !YourMsg.trim()) {
-            console.log('Missing data:', {
-                userId: currentUser?.uid, roomId: chatRoomId, message: YourMsg
-            });
-            return;
-        }
+      return () => {
+         if (typeof unsubscribe === 'function') {
+            unsubscribe();
+         }
+      };
+   }, [chatRoomId])
 
-        try {
-            await sendMessage(chatRoomId, currentUser.uid, YourMsg)
-            setYourMsg("")
-            console.log("Your Message", YourMsg);
+   const groupedMsg = messages.reduce((group, msg) => {
+      const date = msg.createdAt?.toDate();
+      if (!date) return group
 
-        }
-        catch (error: any) {
-            console.error("Error sanding message:", error);
-            setError(error.message)
-        }
-    }
+      let label = format(date, 'dd MMM yyyy');
 
-    // sends message when enter key is pressed
-    const EnterIsSend = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") {
-            handleSend()
-        }
-    }
+      if (isToday(date)) label = 'Today';
+      else if (isYesterday(date)) label = 'Yesterday';
 
-    // scrolling to the bottom for new message
-    const messageEndRef = useRef<HTMLDivElement>(null)
+      if (!group[label]) group[label] = [];
+      group[label].push(msg);
 
-    useEffect(() => {
-        messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, [messages])
+      return group;
+   }, {} as Record<string, Message[]>)
 
-    return (
-        <div className={`bg-gray-950 text-white h-screen w-full sm:w-1/2 lg:w-[50%] flex flex-col`}>
-            {/* Error Message */}
-            {error && (
-                <div className='bg-red-900/20 border border-red-500 text-red-400 p-3 mx-4 mt-4 rounded-lg text-sm'>
-                    Error occurred while getting the messages
-                </div>
-            )}
+   console.log("GroupedMsg", groupedMsg);
 
-            {/* Header */}
-            <div className='bg-gray-800 p-3 sm:p-4 flex items-center justify-between border-b border-gray-700'>
-                <div className='flex items-center flex-1 min-w-0'>
-                    {/* Back button for mobile */}
-                    <button className='sm:hidden p-2 hover:bg-gray-700 rounded-full' onClick={() => navigate('/chats')}>
-                        <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-                            <path fillRule='evenodd' d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z' clipRule='evenodd' />
-                        </svg>
-                    </button>
-                    <div className='relative flex-shrink-0'>
-                        <img
-                            className='w-10 h-10 sm:w-12 sm:h-12 rounded-full brightness-50'
-                            src="/profile-icon.png"
-                            alt={`${userName}'s profile`}
-                        />
-                        {/* Online status indicator */}
-                        <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-800 rounded-full'></div>
-                    </div>
-                    <div className='ml-3 sm:ml-4 flex-1 min-w-0' onClick={handleChatDetails}>
-                        <h1 className='text-lg sm:text-xl lg:text-2xl font-semibold truncate'>{userName}</h1>
-                        <p className='text-xs sm:text-sm text-zinc-400'>Online</p>
-                    </div>
-                </div>
+   const handleUserClick = () => {
+      navigate('/chats')
+      setShowChat(false)
+   }
 
-                <div className='flex items-center gap-2 sm:gap-4'>
-                    <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200'>
-                        <img className='w-5 h-5 sm:w-6 sm:h-6' src="/search.png" alt="Search" />
-                    </button>
+   const handleDetailsClick = () => {
+      if (isMobile) {
+         navigate('/chats/chatspace/chatdetails')
+         setShowDetails(true)
+         console.log("details triggered in mobile");
+      }
+      else {
+         setShowDetails(!showDetails);
+      }
+   }
 
-                    {/* More options for mobile */}
-                    <button className='sm:hidden p-2 hover:bg-gray-700 rounded-full'>
-                        <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-                            <path d='M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z' />
-                        </svg>
-                    </button>
-                </div>
+   // function to send message
+   const handleSend = async () => {
+      if (!currentUser || !chatRoomId || !YourMsg.trim()) {
+         console.log('Missing data:', {
+            userId: currentUser?.uid, roomId: chatRoomId, message: YourMsg
+         });
+         return;
+      }
+
+      try {
+         await sendMessage(chatRoomId, currentUser.uid, YourMsg)
+         setYourMsg("")
+         console.log("Your Message", YourMsg);
+      }
+      catch (error: any) {
+         console.error("Error sanding message:", error);
+         setError(error.message)
+      }
+   }
+
+   // sends message when enter key is pressed
+   const EnterIsSend = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+         handleSend()
+      }
+   }
+
+   // scrolling to the bottom for new message
+   const messageEndRef = useRef<HTMLDivElement>(null)
+
+   useEffect(() => {
+      messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
+   }, [messages])
+
+   return (
+      <div className={`bg-gray-950 text-white h-screen w-full sm:w-1/2 lg:w-[65%] flex flex-col`}>
+         {/* Error Message */}
+         {error && (
+            <div className='bg-red-50 border border-red-200 text-red-700 p-3 mx-4 mt-4 rounded-xl text-sm shadow-sm'>
+               <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>Error occurred while getting the messages</span>
+               </div>
             </div>
+         )}
 
-            {/* Messages Container */}
-            <div className='flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-4'>
-                <div className='flex flex-col gap-1 sm:gap-2 min-h-full justify-end'>
-                    {messages.length === 0 ? (
-                        <div className='flex flex-col items-center justify-center h-full text-center px-4'>
-                            <div className='text-gray-400 mb-4'>
-                                <svg className='w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 opacity-50' fill='currentColor' viewBox='0 0 20 20'>
-                                    <path fillRule='evenodd' d='M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z' clipRule='evenodd' />
-                                </svg>
-                            </div>
-                            <h3 className='text-lg sm:text-xl font-medium mb-2'>No messages yet</h3>
-                            <p className='text-sm sm:text-base text-gray-400'>Send a message to start the conversation</p>
+         {/* Header */}
+         <div className='bg-gray-800 p-3 sm:p-4 flex items-center justify-between border-b border-gray-700'>
+            <div className='flex items-center flex-1 min-w-0'>
+               {/* Back button for mobile */}
+
+               <button className='p-2 hover:bg-gray-700 rounded-full' onClick={handleUserClick}>
+                  <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                     <path fillRule='evenodd' d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z' clipRule='evenodd' />
+                  </svg>
+               </button>
+               <div className='relative flex-shrink-0'>
+                  <img
+                     className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover`}
+                     src={userData.profileImg || '/profile-icon.png'}
+                     alt={`${userData.displayName}'s profile`}
+                  />
+                  {/* Online status indicator */}
+                  <div className={`absolute bottom-0 right-0 w-3 h-3 ${userData.online ? 'bg-green-500' : 'bg-gray-600'} border-2 border-gray-800 rounded-full`}></div>
+               </div>
+               <div className='ml-3 sm:ml-4 flex-1 min-w-0' onClick={handleDetailsClick}>
+                  <h1 className='text-lg sm:text-xl lg:text-2xl font-semibold truncate'>{userData.displayName || "Anonymous"}</h1>
+                  <p className='text-xs sm:text-sm text-zinc-400'>{userStatus.lastSeen}</p>
+               </div>
+            </div>
+            <div className='relative flex items-center gap-2 sm:gap-4'>
+               <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200' onClick={() => setShowSearch(!showSearch)}>
+                  <img className='w-5 h-5 sm:w-6 sm:h-6' src="/search.png" alt="Search" />
+               </button>
+
+               <div className={`flex justify-between items-center right-14 absolute flex-1 bg-gray-950 rounded-2xl px-4 py-2 w-[260px] lg:w-[550px] transition-transform ${showSearch ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
+                  <input
+                     value={searchTerm}
+                     onChange={(e) => handleSearch(e.target.value)}
+                     className='w-full outline-none bg-transparent text-white placeholder-gray-400 text-sm sm:text-base py-2'
+                     type="text"
+                     placeholder="Search for a message!"
+                  />
+                  <div className='text-gray-400'>{currentMatchIndex + 1}/{filteredMsg.length}</div>
+                  <div className='m-2'>
+                     <img src="/up-down.png" alt="" className='w-3' onClick={goToPrevMatch} />
+                     <img src="/up-down.png" alt="" className='w-3 rotate-180' onClick={goToNextMatch} />
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         {/* Messages Container */}
+         <div className='flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-4'>
+            <div className='flex flex-col gap-1 sm:gap-2 min-h-full justify-end'>
+               {messages.length === 0 ? (
+                  <div className='flex flex-col items-center justify-center h-full text-center px-4'>
+                     <div className='text-gray-400 mb-4'>
+                        <svg className='w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 opacity-50' fill='currentColor' viewBox='0 0 20 20'>
+                           <path fillRule='evenodd' d='M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z' clipRule='evenodd' />
+                        </svg>
+                     </div>
+                     <h3 className='text-lg sm:text-xl font-medium mb-2'>No messages yet</h3>
+                     <p className='text-sm sm:text-base text-gray-400'>Send a message to start the conversation</p>
+                  </div>
+               ) : (
+                  Object.entries(groupedMsg).map(([date, msgs]) => (
+                     <div key={date} className="flex flex-col gap-1 sm:gap-2">
+                        {/* Date separator */}
+                        <div className="flex justify-center my-4">
+                           <span className="bg-gray-700 text-gray-300 text-xs px-3 py-1 rounded-full">
+                              {date}
+                           </span>
                         </div>
-                    ) : (
-                        messages.map((message, index) => (
-                            <div
-                                key={message.id}
-                                className={`flex ${message.senderId === currentUser!.uid ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div
-                                    className={`max-w-[85%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base lg:text-lg transition-all duration-200 ${message.senderId === currentUser!.uid
-                                        ? 'bg-blue-600 text-white rounded-br-md ml-8 sm:ml-16'
-                                        : 'bg-gray-800 text-white rounded-bl-md mr-8 sm:mr-16'
-                                        }`}
-                                    ref={index === messages.length - 1 ? messageEndRef : null}
-                                >   
-                                    <p className='break-words'>{message.text}</p>
-                                    <div className={`text-xs mt-1 ${message.senderId === currentUser!.uid
-                                        ? 'text-blue-200'
-                                        : 'text-gray-400'
-                                        }`}>
-                                        {new Date(message.createdAt?.toDate()).toLocaleTimeString([], {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
+
+                        {/* Messages for this date */}
+                        {msgs.map((message, index) => (
+                           (<div
+                              key={message.id}
+                              className={`flex ${message.senderId === currentUser!.uid ? 'justify-end' : 'justify-start'}`}
+                           >
+                              <div
+                                 className={`max-w-[85%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base lg:text-lg 
+                                            ${message.senderId === currentUser!.uid
+                                       ? 'bg-slate-800 text-white rounded-br-md ml-8 sm:ml-16'
+                                       : 'bg-gray-900 text-white rounded-bl-md mr-8 sm:mr-16'
+                                    }`}
+                                 ref={index === msgs.length - 1 && date === Object.keys(groupedMsg).slice(-1)[0] ? messageEndRef : null}
+                              >
+                                 <p className='break-words'>{highlightSearch(message.text, searchTerm)}</p>
+                                 <div className={`text-xs mt-1 ${message.senderId === currentUser!.uid
+                                    ? 'text-blue-200'
+                                    : 'text-gray-400'
+                                    }`}>
+                                    {message.createdAt?.toDate().toLocaleTimeString([], {
+                                       hour: '2-digit',
+                                       minute: '2-digit'
+                                    })}
+                                 </div>
+                              </div>
+                           </div>)
+                        ))}
+                     </div>
+                  ))
+               )}
+            </div>
+         </div>
+
+         {/* Input Container */}
+         <div className='relative bg-gray-800 p-3 sm:p-4 flex items-center gap-2 sm:gap-3 border-t border-gray-700'>
+            {/* Emoji Button */}
+            <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200 flex-shrink-0' onClick={() => setShowPicker(prev => !prev)}>
+               <img className='w-5 h-5 sm:w-6 sm:h-6' src="/emoji.png" alt="Emoji" />
+            </button>
+            <div ref={pickerRef} className={`absolute bottom-24 left-2 z-1 transition-transform ${showPicker ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
+               {
+                  showPicker && (
+                     <EmojiPicker
+                        onEmojiClick={addEmoji}
+                        theme="dark"
+                        emojiStyle='apple'
+                        height={400}
+                        width={350}
+                     />
+                  )
+               }
             </div>
 
-            {/* Input Container */}
-            <div className='bg-gray-800 p-3 sm:p-4 flex items-center gap-2 sm:gap-3 border-t border-gray-700'>
-                {/* Emoji Button */}
-                <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200 flex-shrink-0'>
-                    <img className='w-5 h-5 sm:w-6 sm:h-6' src="/emoji.png" alt="Emoji" />
-                </button>
-
-                {/* Attachment Button */}
-                <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200 flex-shrink-0'>
-                    <img className='w-5 h-5 sm:w-6 sm:h-6' src="/attach.png" alt="Attach" />
-                </button>
-
-                {/* Input Field */}
-                <div className='flex-1 bg-gray-950 rounded-full px-4 py-2'>
-                    <input
-                        onKeyDown={EnterIsSend}
-                        onChange={(e) => setYourMsg(e.target.value)}
-                        value={YourMsg}
-                        className='w-full outline-none bg-transparent text-white placeholder-gray-400 text-sm sm:text-base py-2'
-                        type="text"
-                        placeholder="Type a message!"
-                    />
-                </div>
-
-                {/* Send Button */}
-                <button
-                    onClick={handleSend}
-                    disabled={!YourMsg.trim()}
-                    className={`p-3 sm:p-4 rounded-full transition-all duration-200 flex-shrink-0 ${YourMsg.trim()
-                        ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                        : 'bg-gray-600 cursor-not-allowed'
-                        }`}
-                >
-                    <img className='w-5 h-5 sm:w-6 sm:h-6' src="/send.png" alt="Send" />
-                </button>
+            {/* Input Field */}
+            <div className='flex-1 bg-gray-950 rounded-full px-4 py-2'>
+               <input
+                  onKeyDown={EnterIsSend}
+                  onChange={(e) => setYourMsg(e.target.value)}
+                  value={YourMsg}
+                  className='w-full outline-none bg-transparent text-white placeholder-gray-400 text-sm sm:text-base py-2'
+                  type="text"
+                  placeholder="Type a message!"
+               />
             </div>
-        </div>
-    )
+
+            {/* Send Button */}
+            <button
+               onClick={handleSend}
+               disabled={!YourMsg.trim()}
+               className={`p-3 sm:p-4 rounded-full transition-all duration-200 flex-shrink-0 ${YourMsg.trim()
+                  ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                  : 'bg-gray-600 cursor-not-allowed'
+                  }`}
+            >
+               <img className='w-5 h-5 sm:w-6 sm:h-6' src="/send.png" alt="Send" />
+            </button>
+         </div>
+      </div>
+   )
 }
 
 export default ChatSpace

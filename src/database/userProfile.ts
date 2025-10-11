@@ -14,7 +14,8 @@ export const saveUserProfile = async () => {
             email: user.email,
             // username: user.displayName,
             createdAt: serverTimestamp(),
-            lastSeen: serverTimestamp()
+            lastSeen: serverTimestamp(),
+            online: true
         }, { merge: true });
 
         console.log("user profile saved successfully");

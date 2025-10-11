@@ -1,76 +1,74 @@
 import { useEffect, useState } from 'react'
-import ChatList from '../Components/ChatList';
 import ChatSpace from '../Components/ChatSpace';
 import ChatDetails from '../Components/ChatDetails';
-import { Route, Routes, useParams } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import EmptyChat from '../Components/EmptyChat';
 import { useMediaQuery } from 'react-responsive';
+import ChatList from '../Components/ChatList';
 
-interface SelectedUser {
-    name: string;
+interface User {
     id: string;
+    name: string;
+    email?: string;
+    lastSeen?: string;
+    createdAt?: string;
 }
 
 function ChatPage() {
-    const { chatId } = useParams<{ chatId?: string }>()
-    console.log("chatId", chatId);
-
-    const [currentUser, setCurrentuser] = useState<SelectedUser>({
+    const [currentUser, setCurrentuser] = useState<User>({
         name: '',
-        id: ''
+        id: '',
+        email: '',
+        lastSeen: '',
+        createdAt: ''
     })
     const [showDetails, setShowDetails] = useState(false)
     const [showChat, setShowChat] = useState(false)
 
     const isMobile = useMediaQuery({ maxWidth: 641 });
+    const navigate = useNavigate()
 
-    const handleChange = (userName: string, userId: string) => {
-        setCurrentuser({
-            name: userName,
-            id: userId
-        })
+    const handleChange = (user: User) => {
+        setCurrentuser(user)
     }
 
     useEffect(() => {
-        if (!chatId) {
-            setCurrentuser({ name: '', id: '' })
-            setShowDetails(false)
+        if (window.location.pathname !== '/chats') {
+            navigate('/chats', { replace: true })
         }
-    }, [chatId])
+    }, [])
 
-    const toggleChatDetails = () => {
-        setShowDetails(!showDetails)
-    }
+    useEffect(() => {
+        const isChatOpen = location.pathname.includes('/chatspace')
 
-    const toggleChat = () => {
-        setShowChat(!showChat)
-    }
+        if (!isMobile) {
+            navigate('/chats')
 
-    const closeChatDetails = () => {
-        setShowDetails(false)
-    }
-
+            if (isChatOpen) {
+                setShowChat(true)
+            }
+        }
+        else if (showChat && !isChatOpen) {
+            navigate('/chats/chatspace')
+        }
+    }, [isMobile, navigate, showChat])
 
     return (
-        <div className="h-screen flex overflow-hidden">
+        <div className="h-screen flex overflow-hidden relative">
             {/* Desktop */}
-            { !isMobile && <div className="hidden sm:flex w-full relative">
-                <ChatList userName={handleChange} handleChat={toggleChat} />
-
-                {/* <div className='flex'> */}
-                {showChat ? (<ChatSpace userName={currentUser.name} userId={currentUser.id} handleChatDetails={toggleChatDetails} />) :
+            {!isMobile && <div className="hidden sm:flex w-full relative">
+                <ChatList userName={handleChange} setShowChat={setShowChat} setShowDetails={setShowDetails} showDetails={showDetails} />
+                {showChat ? (<ChatSpace userData={currentUser} showDetails={showDetails} setShowDetails={setShowDetails} setShowChat={setShowChat} />) :
                     (<EmptyChat />)}
-
-                {chatId && (<ChatDetails chatId={chatId} toCloseChatDetails={closeChatDetails} className={`${showDetails ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-full`} />)}
-                {/* </div> */}
+                <ChatDetails setShowDetails={setShowDetails} showDetails={showDetails} userData={currentUser} />
             </div>}
 
             {/* Mobile */}
-            { isMobile && <div className="min-md:hidden w-full">
+            {isMobile && <div className="min-md:hidden w-full">
                 <Routes>
-                    <Route path='/' element={<ChatList userName={handleChange} chatId={chatId} />} />
-                    <Route path='/chatspace' element={<ChatSpace userName={currentUser.name} userId={currentUser.id} />} />
-                    <Route path='/:chatId/chatdetails' element={<ChatDetails chatId={chatId} />} />
+                    <Route path='/' element={<ChatList userName={handleChange} setShowChat={setShowChat} setShowDetails={setShowDetails} showDetails={showDetails} />} />
+                    <Route path='/chatspace' element={<ChatSpace userData={currentUser} setShowDetails={setShowDetails} setShowChat={setShowChat} />} />
+                    <Route path='/chatspace/chatdetails' element={<ChatDetails userData={currentUser} setShowDetails={setShowDetails} showDetails={showDetails} />} />
                 </Routes>
             </div>}
         </div>

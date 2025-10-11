@@ -5,7 +5,6 @@ import { googleLogin, signIn } from '../backend/authUtil';
 function Signup() {
 
     const [email, setEmail] = useState('');
-    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -21,7 +20,7 @@ function Signup() {
             }
 
             await signIn(email, password)
-            navigate('/chats')
+            navigate('/profile')
             alert('user signed in succesfully')
         }
         catch (error) {
@@ -101,18 +100,6 @@ function Signup() {
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
-
-                    <div className='bg-gray-950 text-gray-300 flex items-center p-3 rounded-lg w-full'>
-                        <img className='w-5 sm:w-6 mr-3 flex-shrink-0' src="user.png" alt="User" />
-                        <input
-                            className='outline-none w-full bg-transparent text-white placeholder-gray-400 text-sm sm:text-base'
-                            type="text"
-                            placeholder='Username'
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
-                    </div>
-
                     <div className='bg-gray-950 text-gray-300 flex items-center p-3 rounded-lg w-full'>
                         <img className='w-5 sm:w-6 mr-3 flex-shrink-0' src="password.png" alt="Password" />
                         <input
