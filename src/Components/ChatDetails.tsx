@@ -8,9 +8,9 @@ import { deleteConversation } from "../backend/chatUtil";
 import { getAuth } from "@firebase/auth";
 
 interface ChatListProp {
-  userData: { displayName: string, id: string, email: string, lastSeen: string, location: string, createdAt: string }
+  userData: { profileImg: string, displayName: string, id: string, email: string, lastSeen: string, about: string, location: string, createdAt: string }
   showDetails: boolean
-  setShowDetails?: (show: boolean) => void;
+  setShowDetails: (show: boolean) => void;
 }
 
 function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
@@ -127,9 +127,7 @@ function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
     }
   };
 
-  const deleteChat = async (e: MouseEvent) => {
-    e.preventDefault();
-
+  const deleteChat = async () => {
     try {
       await deleteConversation([currentUser, userData?.id].sort().join('_'))
       console.log(userData.id);

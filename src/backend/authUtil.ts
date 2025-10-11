@@ -61,13 +61,6 @@ export const googleLogin = async () => {
     }
 }
 
-interface UserProfileData {
-    profileImg?: string;
-    displayName: string;
-    about: string;
-    location: string;
-}
-
 export const uploadProfileImage = async (file: File): Promise<string> => {
     try {
         const storage = getStorage(app)
@@ -93,7 +86,9 @@ export const CompleteProfile = async (imageBase64: string | null, name: string, 
 
         console.log("problem is something here");
 
-        const updatedData: UserProfileData = {
+        type FirebaseUpdatedData = { [key: string]: any };
+
+        const updatedData: FirebaseUpdatedData = {
             displayName: name,
             about: bio,
             location: city
@@ -107,7 +102,7 @@ export const CompleteProfile = async (imageBase64: string | null, name: string, 
         console.log("Profile updated successfully");
     }
     catch (error) {
-        console.log("Error occured while completing profile", error);
+        console.log("Error occured while completing profile", error);   
         throw error
     }
 }

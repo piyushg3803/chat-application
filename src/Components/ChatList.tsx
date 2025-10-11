@@ -11,6 +11,7 @@ interface User {
   id: string;
   uid?: string;
   displayName?: string;
+  profileImg: string,
   about?: string;
   location: string;
   email?: string;

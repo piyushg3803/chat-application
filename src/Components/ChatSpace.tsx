@@ -4,13 +4,13 @@ import { useAuth } from '../Context/authContext';
 import { useNavigate } from 'react-router-dom';
 import { useMediaQuery } from 'react-responsive';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
-import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../backend/firebaseAuth';
 import EmojiPicker from 'emoji-picker-react'
 import '../index.css'
 
 interface ChatSpaceProps {
-   userData: { displayName: string, id: string, email: string, lastSeen: string, createdAt: string };
+   userData: { displayName: string, id: string, profileImg: string, email: string, online: string, createdAt: string };
    userName: string;
    userId: string;
    showDetails: boolean;
@@ -30,7 +30,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
    const [searchTerm, setSearchTerm] = useState('')
    const [matchedIndexes, setMatchedIndexes] = useState<number[]>([]);
    const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-   const [filteredMsg, setFilteredMsg] = useState('')
+   const [filteredMsg, setFilteredMsg] = useState([])
    const [showSearch, setShowSearch] = useState(false)
    const [messages, setMessages] = useState<Message[]>([])
    const [YourMsg, setYourMsg] = useState('')
@@ -228,7 +228,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
    }, [chatRoomId])
 
    const groupedMsg = messages.reduce((group, msg) => {
-      const date = msg.createdAt?.toDate();
+      const date = msg.createdAt?.toDate(); 
       if (!date) return group
 
       let label = format(date, 'dd MMM yyyy');
