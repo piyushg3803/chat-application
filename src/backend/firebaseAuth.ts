@@ -8,8 +8,9 @@ import { getAuth } from "@firebase/auth";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
 const firebaseConfig = {
-  apiKey: "AIzaSyAb0AJEEHqTHaDF1FL1XnrZ45dD5Glplkk",
+  apiKey: import.meta.env.VITE_API_KEY,
   authDomain: "chatapp-4e74b.firebaseapp.com",
   projectId: "chatapp-4e74b",
   storageBucket: "chatapp-4e74b.firebasestorage.app",
