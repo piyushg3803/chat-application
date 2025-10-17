@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom';
-import { completeProfile, googleLogin, logIn } from '../backend/authUtil';
+import { googleLogin, logIn } from '../backend/authUtil';
 
 function Login() {
 

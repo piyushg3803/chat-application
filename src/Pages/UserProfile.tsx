@@ -3,7 +3,6 @@ import { CompleteProfile } from '../backend/authUtil';
 import { useNavigate } from 'react-router-dom';
 
 function UserProfile() {
-    const [profileImg, setProfileImg] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
     const [username, setUserName] = useState('');
     const [about, setAbout] = useState('');
@@ -13,7 +12,7 @@ function UserProfile() {
 
     const navigate = useNavigate();
 
-    if(isLoading) { 
+    if (isLoading) {
         console.log("Loading is on");
     }
 
@@ -49,7 +48,7 @@ function UserProfile() {
     const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         console.log("proccess started");
-        
+
         try {
             setIsLoading(true);
             setError('');
@@ -63,18 +62,18 @@ function UserProfile() {
             )
 
             console.log("Process passed through Complete Profile function");
-            
+
             navigate('/chats', { replace: true });
         } catch (error) {
             console.error("Error updating profile:", error);
             setError('Failed to save changes. Please try again.')
             console.log("Failed to update profile ");
-            
+
         }
         finally {
             setIsLoading(false)
             console.log("profile updated");
-            
+
         }
     }
 
@@ -130,11 +129,6 @@ function UserProfile() {
                                 />
                             </label>
                         </div>
-
-                        <p className='text-xs text-gray-500 mt-2'>Click to upload photo</p>
-                        {profileImg && (
-                            <p className='text-xs text-green-400 mt-1'>Image selected: {profileImg.name}</p>
-                        )}
                     </div>
 
                     {/* Form Fields */}

@@ -7,72 +7,90 @@ import { useMediaQuery } from 'react-responsive';
 import ChatList from '../Components/ChatList';
 
 interface User {
-    id: string;
-    name: string;
-    email?: string;
-    lastSeen?: string;
-    createdAt?: string;
+   displayName: string, id: string, profileImg: string, email: string, online: string, createdAt: string, lastSeen: string, about: string, location: string,
 }
 
 function ChatPage() {
-    const [currentUser, setCurrentuser] = useState<User>({
-        name: '',
-        id: '',
-        email: '',
-        lastSeen: '',
-        createdAt: ''
-    })
-    const [showDetails, setShowDetails] = useState(false)
-    const [showChat, setShowChat] = useState(false)
+   const [currentUser, setCurrentuser] = useState<User>({
+      displayName: '',
+      id: '',
+      profileImg: '',
+      email: '',
+      online: '',
+      lastSeen: '',
+      about: '',
+      location: '',
+      createdAt: ''
+   })
+   const [showDetails, setShowDetails] = useState(false)
+   const [showChat, setShowChat] = useState(false)
 
-    const isMobile = useMediaQuery({ maxWidth: 641 });
-    const navigate = useNavigate()
+   const isMobile = useMediaQuery({ maxWidth: 641 });
+   const navigate = useNavigate()
 
-    const handleChange = (user: User) => {
-        setCurrentuser(user)
-    }
+   const handleChange = (user: User) => {
+      setCurrentuser(user)
+   }
 
-    useEffect(() => {
-        if (window.location.pathname !== '/chats') {
-            navigate('/chats', { replace: true })
-        }
-    }, [])
+   useEffect(() => {
+      if (isMobile) {
+         if (window.location.pathname === '/chats') {
+            return;
+         }
 
-    useEffect(() => {
-        const isChatOpen = location.pathname.includes('/chatspace')
-
-        if (!isMobile) {
+         if(!showChat) {
             navigate('/chats')
+         }
 
-            if (isChatOpen) {
-                setShowChat(true)
-            }
-        }
-        else if (showChat && !isChatOpen) {
-            navigate('/chats/chatspace')
-        }
-    }, [isMobile, navigate, showChat])
+         // Handle chat details navigation
+         if (showDetails) {
+            navigate('/chats/chatspace/chatdetails', {
+               replace: true,
+               state: { fromChatSpace: true } // Add state to track navigation source
+            });
+         }
+      } else {
+         // Desktop: always stay on main route
+         navigate('/chats', { replace: true });
+      }
+   }, [isMobile, showDetails, navigate]);
 
-    return (
-        <div className="h-screen flex overflow-hidden relative">
-            {/* Desktop */}
-            {!isMobile && <div className="hidden sm:flex w-full relative">
-                <ChatList userName={handleChange} setShowChat={setShowChat} setShowDetails={setShowDetails} showDetails={showDetails} />
-                {showChat ? (<ChatSpace userData={currentUser} showDetails={showDetails} setShowDetails={setShowDetails} setShowChat={setShowChat} />) :
-                    (<EmptyChat />)}
-                <ChatDetails setShowDetails={setShowDetails} showDetails={showDetails} userData={currentUser} />
-            </div>}
-
-            {/* Mobile */}
-            {isMobile && <div className="min-md:hidden w-full">
-                <Routes>
-                    <Route path='/' element={<ChatList userName={handleChange} setShowChat={setShowChat} setShowDetails={setShowDetails} showDetails={showDetails} />} />
-                    <Route path='/chatspace' element={<ChatSpace userData={currentUser} setShowDetails={setShowDetails} setShowChat={setShowChat} />} />
-                    <Route path='/chatspace/chatdetails' element={<ChatDetails userData={currentUser} setShowDetails={setShowDetails} showDetails={showDetails} />} />
-                </Routes>
-            </div>}
-        </div>
-    )
+   return (
+      <div className="h-screen flex overflow-hidden relative">
+         {/* Desktop */}
+         {!isMobile ? (
+            <div className="hidden sm:flex w-full relative">
+               <ChatList userName={handleChange} setShowChat={setShowChat} />
+               {showChat ? (<ChatSpace userData={currentUser} showDetails={showDetails} setShowDetails={setShowDetails} setShowChat={setShowChat} />) :
+                  (<EmptyChat />)}
+               <ChatDetails setShowDetails={setShowDetails} showDetails={showDetails} userData={currentUser} />
+            </div>
+         ) : (
+            <div className="min-md:hidden w-full">
+               <Routes>
+                  <Route index element={
+                     <ChatList userName={handleChange} setShowChat={setShowChat} />
+                  } />
+                  <Route path='chatspace/*' element={
+                     <ChatSpace
+                        userData={currentUser}
+                        showDetails={showDetails}
+                        setShowDetails={setShowDetails}
+                        setShowChat={setShowChat}
+                     />
+                  } />
+                  <Route path='chatspace/chatdetails' element={
+                     <ChatDetails
+                        userData={currentUser}
+                        showDetails={true}
+                        setShowDetails={setShowDetails}
+                     />
+                  } />
+               </Routes>
+            </div>
+         )}
+      </div>
+   )
 }
 
 export default ChatPage;

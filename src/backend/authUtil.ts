@@ -23,7 +23,7 @@ export const signIn = async (email: string, password: string) => {
             console.log("user profile saved");
             return userCredentials.user
         }
-        catch (dbError: any) {
+        catch (dbError: unknown) {
             console.error("Error creating user document:", dbError);
             await auth.currentUser?.delete();
             throw new Error("Failed to create user profile");

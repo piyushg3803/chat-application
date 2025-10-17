@@ -4,15 +4,13 @@ import { useAuth } from '../Context/authContext';
 import { useNavigate } from 'react-router-dom';
 import { useMediaQuery } from 'react-responsive';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../backend/firebaseAuth';
 import EmojiPicker from 'emoji-picker-react'
 import '../index.css'
 
 interface ChatSpaceProps {
    userData: { displayName: string, id: string, profileImg: string, email: string, online: string, createdAt: string };
-   userName: string;
-   userId: string;
    showDetails: boolean;
    setShowDetails: (show: boolean) => void;
    setShowChat: (show: boolean) => void;
@@ -22,7 +20,8 @@ interface Message {
    id: string;
    text: string;
    senderId: string;
-   createdAt: string;
+   createdAt: Timestamp;
+   seenBy: string[];
 }
 
 function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatSpaceProps) {
@@ -30,7 +29,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
    const [searchTerm, setSearchTerm] = useState('')
    const [matchedIndexes, setMatchedIndexes] = useState<number[]>([]);
    const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-   const [filteredMsg, setFilteredMsg] = useState([])
+   const [filteredMsg, setFilteredMsg] = useState<Message[]>([])
    const [showSearch, setShowSearch] = useState(false)
    const [messages, setMessages] = useState<Message[]>([])
    const [YourMsg, setYourMsg] = useState('')
@@ -65,7 +64,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                } else if (isYesterday(lastSeenTimestamp)) {
                   formattedLastSeen = `Last seen yesterday at ${format(lastSeenTimestamp, 'h:mm aaa')}`;
                } else {
-                  formattedLastSeen = `Last seen ${format(lastSeenTimestamp, 'h:mm aaa')}`;
+                  formattedLastSeen = `Last seen ${format(lastSeenTimestamp, 'PPp')}`;
                }
             }
 
@@ -227,8 +226,10 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
       };
    }, [chatRoomId])
 
+   console.log("All Messages", messages);
+
    const groupedMsg = messages.reduce((group, msg) => {
-      const date = msg.createdAt?.toDate(); 
+      const date = msg.createdAt?.toDate();
       if (!date) return group
 
       let label = format(date, 'dd MMM yyyy');
@@ -249,16 +250,22 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
       setShowChat(false)
    }
 
+   console.log("Show Details from the ChatSpace", showDetails);
+
    const handleDetailsClick = () => {
       if (isMobile) {
-         navigate('/chats/chatspace/chatdetails')
          setShowDetails(true)
+         navigate('chatdetails', { replace: true, state: { from: 'chatspace' } });
          console.log("details triggered in mobile");
+         // console.log("From Mobile", showDetails);
       }
       else {
+         console.log("details triggered desktop ");
          setShowDetails(!showDetails);
+         console.log("From Desktop");
       }
    }
+   console.log("This is the result", showDetails);
 
    // function to send message
    const handleSend = async () => {
@@ -295,7 +302,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
    }, [messages])
 
    return (
-      <div className={`bg-gray-950 text-white h-screen w-full sm:w-1/2 lg:w-[65%] flex flex-col`}>
+      <div className={`bg-zinc-950 text-white h-screen w-full sm:w-1/2 lg:w-[65%] flex flex-col`}>
          {/* Error Message */}
          {error && (
             <div className='bg-red-50 border border-red-200 text-red-700 p-3 mx-4 mt-4 rounded-xl text-sm shadow-sm'>
@@ -309,7 +316,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
          )}
 
          {/* Header */}
-         <div className='bg-gray-800 p-3 sm:p-4 flex items-center justify-between border-b border-gray-700'>
+         <div className='bg-zinc-900 p-3 sm:p-4 flex items-center justify-between'>
             <div className='flex items-center flex-1 min-w-0'>
                {/* Back button for mobile */}
 
@@ -337,7 +344,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                   <img className='w-5 h-5 sm:w-6 sm:h-6' src="/search.png" alt="Search" />
                </button>
 
-               <div className={`flex justify-between items-center right-14 absolute flex-1 bg-gray-950 rounded-2xl px-4 py-2 w-[260px] lg:w-[550px] transition-transform ${showSearch ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
+               <div className={`justify-between items-center right-14 absolute flex-1 bg-zinc-950 rounded-2xl px-4 py-2 w-[260px] lg:w-[550px] transition-transform ${showSearch ? 'flex scale-100 opacity-100' : 'hidden scale-90 opacity-0'}`}>
                   <input
                      value={searchTerm}
                      onChange={(e) => handleSearch(e.target.value)}
@@ -345,7 +352,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                      type="text"
                      placeholder="Search for a message!"
                   />
-                  <div className='text-gray-400'>{currentMatchIndex + 1}/{filteredMsg.length}</div>
+                  <div className='text-gray-400'>{currentMatchIndex}/{filteredMsg.length}</div>
                   <div className='m-2'>
                      <img src="/up-down.png" alt="" className='w-3' onClick={goToPrevMatch} />
                      <img src="/up-down.png" alt="" className='w-3 rotate-180' onClick={goToNextMatch} />
@@ -356,72 +363,79 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
 
          {/* Messages Container */}
          <div className='flex-1 overflow-y-auto hide-scrollbar p-2 sm:p-4'>
-            <div className='flex flex-col gap-1 sm:gap-2 min-h-full justify-end'>
-               {messages.length === 0 ? (
-                  <div className='flex flex-col items-center justify-center h-full text-center px-4'>
-                     <div className='text-gray-400 mb-4'>
-                        <svg className='w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 opacity-50' fill='currentColor' viewBox='0 0 20 20'>
-                           <path fillRule='evenodd' d='M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z' clipRule='evenodd' />
-                        </svg>
+            {messages.length === 0 ? (
+               // Empty state - centered in the middle of the screen
+               <div className='h-full flex items-center justify-center'>
+                  <div className='flex flex-col items-center justify-center text-center px-4 max-w-md'>
+                     <div className='relative mb-6'>
+                        {/* Icon */}
+                        <div className='relative bg-zinc-800/50 p-6 sm:p-8 rounded-full'>
+                           <svg className='w-12 h-12 sm:w-16 sm:h-16 text-gray-400' fill='currentColor' viewBox='0 0 20 20'>
+                              <path fillRule='evenodd' d='M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z' clipRule='evenodd' />
+                           </svg>
+                        </div>
                      </div>
-                     <h3 className='text-lg sm:text-xl font-medium mb-2'>No messages yet</h3>
-                     <p className='text-sm sm:text-base text-gray-400'>Send a message to start the conversation</p>
+
+                     <h3 className='text-xl sm:text-2xl font-semibold mb-3 text-white'>No messages yet</h3>
+                     <p className='text-sm sm:text-base text-gray-400 mb-6 leading-relaxed'>
+                        Start the conversation by sending a message below
+                     </p>
                   </div>
-               ) : (
-                  Object.entries(groupedMsg).map(([date, msgs]) => (
+               </div>
+            ) : (
+               <div className='flex flex-col gap-1 sm:gap-2 min-h-full justify-end'>
+                  {Object.entries(groupedMsg).map(([date, msgs]) => (
                      <div key={date} className="flex flex-col gap-1 sm:gap-2">
                         {/* Date separator */}
                         <div className="flex justify-center my-4">
-                           <span className="bg-gray-700 text-gray-300 text-xs px-3 py-1 rounded-full">
+                           <span className="bg-zinc-800 text-gray-300 text-xs px-3 py-2 rounded-xl">
                               {date}
                            </span>
                         </div>
 
                         {/* Messages for this date */}
                         {msgs.map((message, index) => (
-                           (<div
+                           <div
                               key={message.id}
-                              className={`flex ${message.senderId === currentUser!.uid ? 'justify-end' : 'justify-start'}`}
+                              className={`flex flex-col ${message.senderId === currentUser!.uid ? 'items-end' : 'items-start'}`}
                            >
                               <div
-                                 className={`max-w-[85%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base lg:text-lg 
-                                            ${message.senderId === currentUser!.uid
-                                       ? 'bg-slate-800 text-white rounded-br-md ml-8 sm:ml-16'
-                                       : 'bg-gray-900 text-white rounded-bl-md mr-8 sm:mr-16'
+                                 className={`max-w-[85%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base lg:text-xl 
+                                   ${message.senderId === currentUser!.uid
+                                       ? 'bg-zinc-100 text-zinc-900 rounded-br-md ml-8 sm:ml-16'
+                                       : 'bg-zinc-900 text-white rounded-bl-md mr-8 sm:mr-16'
                                     }`}
                                  ref={index === msgs.length - 1 && date === Object.keys(groupedMsg).slice(-1)[0] ? messageEndRef : null}
                               >
                                  <p className='break-words'>{highlightSearch(message.text, searchTerm)}</p>
-                                 <div className={`text-xs mt-1 ${message.senderId === currentUser!.uid
-                                    ? 'text-blue-200'
-                                    : 'text-gray-400'
-                                    }`}>
-                                    {message.createdAt?.toDate().toLocaleTimeString([], {
-                                       hour: '2-digit',
-                                       minute: '2-digit'
-                                    })}
-                                 </div>
                               </div>
-                           </div>)
+                              <div className='text-[11px] mt-1 text-zinc-400 flex'>
+                                 {message.createdAt?.toDate().toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                 })}
+                                 {message.senderId === currentUser?.uid && (message.seenBy.length > 1 && <img src="seen.png" alt="" className='w-3 h-3 mx-2' />)}
+                              </div>
+                           </div>
                         ))}
                      </div>
-                  ))
-               )}
-            </div>
+                  ))}
+               </div>
+            )}
          </div>
 
          {/* Input Container */}
-         <div className='relative bg-gray-800 p-3 sm:p-4 flex items-center gap-2 sm:gap-3 border-t border-gray-700'>
+         <div className='relative bg-zinc-900 p-3 sm:p-4 flex items-center gap-2 sm:gap-3'>
             {/* Emoji Button */}
-            <button className='p-2 hover:bg-gray-700 rounded-full transition-colors duration-200 flex-shrink-0' onClick={() => setShowPicker(prev => !prev)}>
-               <img className='w-5 h-5 sm:w-6 sm:h-6' src="/emoji.png" alt="Emoji" />
+            <button className='p-2 hover:bg-zinc-800 rounded-full transition-colors duration-200 flex-shrink-0' onClick={() => setShowPicker(prev => !prev)}>
+               <img className='w-8 h-8 sm:w-6 sm:h-6' src="/emoji.png" alt="Emoji" />
             </button>
             <div ref={pickerRef} className={`absolute bottom-24 left-2 z-1 transition-transform ${showPicker ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
                {
                   showPicker && (
                      <EmojiPicker
                         onEmojiClick={addEmoji}
-                        theme="dark"
+                        theme='dark'
                         emojiStyle='apple'
                         height={400}
                         width={350}
@@ -431,12 +445,12 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
             </div>
 
             {/* Input Field */}
-            <div className='flex-1 bg-gray-950 rounded-full px-4 py-2'>
+            <div className='flex-1 bg-zinc-950 rounded-full px-4 py-2'>
                <input
                   onKeyDown={EnterIsSend}
                   onChange={(e) => setYourMsg(e.target.value)}
                   value={YourMsg}
-                  className='w-full outline-none bg-transparent text-white placeholder-gray-400 text-sm sm:text-base py-2'
+                  className='w-full outline-none bg-transparent text-white placeholder-zinc-400 text-sm sm:text-base py-2'
                   type="text"
                   placeholder="Type a message!"
                />
@@ -447,8 +461,8 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                onClick={handleSend}
                disabled={!YourMsg.trim()}
                className={`p-3 sm:p-4 rounded-full transition-all duration-200 flex-shrink-0 ${YourMsg.trim()
-                  ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                  : 'bg-gray-600 cursor-not-allowed'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-200'
+                  : 'bg-zinc-600 cursor-not-allowed'
                   }`}
             >
                <img className='w-5 h-5 sm:w-6 sm:h-6' src="/send.png" alt="Send" />
