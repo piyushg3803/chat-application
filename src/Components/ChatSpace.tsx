@@ -6,7 +6,7 @@ import { useMediaQuery } from 'react-responsive';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../backend/firebaseAuth';
-import EmojiPicker from 'emoji-picker-react'
+import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react'
 import '../index.css'
 
 interface ChatSpaceProps {
@@ -435,8 +435,8 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                   showPicker && (
                      <EmojiPicker
                         onEmojiClick={addEmoji}
-                        theme='dark'
-                        emojiStyle='apple'
+                        theme={Theme.DARK}
+                        emojiStyle={EmojiStyle.APPLE}
                         height={400}
                         width={350}
                      />
