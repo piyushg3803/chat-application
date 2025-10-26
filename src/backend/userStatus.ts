@@ -11,7 +11,6 @@ export const useUserStatus = (userId: string) => {
     const [status, setStatus] = useState<UserStatus | null>(null)
 
     useEffect(() => {
-
         const userRef = doc(db, "users", userId);
         const unsubscribe = onSnapshot(userRef, (doc) => {
             if (doc.exists()) {

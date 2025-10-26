@@ -34,7 +34,7 @@ function Signup() {
         e.preventDefault()
         try {
             await googleLogin();
-            navigate('/chats')
+            navigate('/profile')
             alert('user signed in succesfully');
         }
         catch (error) {

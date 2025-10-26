@@ -263,7 +263,7 @@ function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
         {/* Action Buttons - Fixed at bottom */}
         <div className='p-6 bg-zinc-900/50 backdrop-blur-sm'>
           <div className='flex justify-between items-center gap-3'>
-            <button className='flex-1 bg-zinc-800 hover:bg-zinc-700 p-3 rounded-lg transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'>
+            {/* <button className='flex-1 bg-zinc-800 hover:bg-zinc-700 p-3 rounded-lg transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'>
               <svg className='w-5 h-5 text-zinc-400 group-hover:text-white transition-colors' fill='currentColor' viewBox='0 0 20 20'>
                 <path fillRule='evenodd' d='M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z' clipRule='evenodd' />
               </svg>
@@ -275,7 +275,7 @@ function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
                 <path fillRule='evenodd' d='M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z' clipRule='evenodd' />
               </svg>
               <span className='text-sm font-medium hidden sm:inline'>Block</span>
-            </button>
+            </button> */}
 
             <button className='flex-1 bg-red-900/50 hover:bg-red-800 p-3 rounded-lg transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 group'
               onClick={deleteChat}>
