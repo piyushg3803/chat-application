@@ -2,21 +2,19 @@ import React from 'react'
 import { useAuth } from '../Context/authContext'
 import { Navigate } from 'react-router-dom';
 
-interface ProtecteChildren {
-   children: React.ReactNode
-}
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+   const { user, loading } = useAuth();
 
-function ProtectedRoute({ children }: ProtecteChildren) {
-
-   const { user } = useAuth();
-   if (!user) {
-      alert("Please Login to Access This Page")
-      return < Navigate to={'/login'} replace />;
+   if (loading) {
+      return null
    }
 
-   return (
-      <>{children}</>
-   )
-}
+   if (!user) {
+      return <Navigate to="/login" replace />;
+   }
+
+   return <>{children}</>;
+};
+
 
 export default ProtectedRoute

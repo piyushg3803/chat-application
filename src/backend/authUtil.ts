@@ -6,7 +6,7 @@ import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage"
 
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider()
-    
+
 export const signIn = async (email: string, password: string) => {
     try {
         const userCredentials = await createUserWithEmailAndPassword(auth, email, password);
@@ -102,7 +102,7 @@ export const CompleteProfile = async (imageBase64: string | null, name: string, 
         console.log("Profile updated successfully");
     }
     catch (error) {
-        console.log("Error occured while completing profile", error);   
+        console.log("Error occured while completing profile", error);
         throw error
     }
 }
@@ -159,7 +159,6 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
         catch (error) {
             console.error("Error in auth state change", error);
             callback(null)
-
         }
     })
 };
