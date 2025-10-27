@@ -6,7 +6,7 @@ import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage"
 
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider()
-
+    
 export const signIn = async (email: string, password: string) => {
     try {
         const userCredentials = await createUserWithEmailAndPassword(auth, email, password);

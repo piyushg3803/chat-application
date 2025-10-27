@@ -4,7 +4,7 @@ import './index.css'
 import { AuthProvider } from './Context/authContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+  <AuthProvider>
+    <App />
+  </AuthProvider>
 )

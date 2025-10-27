@@ -21,11 +21,11 @@ function Signup() {
 
             await signIn(email, password)
             navigate('/profile')
-            alert('user signed in succesfully')
+            alert('User Signed in Succesfully')
         }
         catch (error) {
             setError('Failed to create account');
-            alert("Failed to create the user account")
+            alert("Failed to Create User Account")
             console.log(error)
         }
     }
@@ -35,11 +35,11 @@ function Signup() {
         try {
             await googleLogin();
             navigate('/profile')
-            alert('user signed in succesfully');
+            alert('User Signed in Succesfully');
         }
         catch (error) {
             setError('Failed to login!');
-            alert('Failed to create user account')
+            alert('Failed to Create User Account')
             console.log(error)
         }
     }

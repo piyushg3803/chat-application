@@ -47,7 +47,7 @@ function ChatList({ userName, setShowChat }: ChatListProps) {
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState(false);
    const navigate = useNavigate();
-   const { user: currentUser } = useAuth();
+   const { user:  currentUser } = useAuth();
    const isMobile = useMediaQuery({ maxWidth: 641 });
 
    const handleUserClick = (user: User) => {

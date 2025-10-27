@@ -132,7 +132,7 @@ function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
     try {
       await deleteConversation([currentUser, userData?.id].sort().join('_'))
       console.log(userData.id);
-      alert("Conversation deleted!")
+      alert("Conversation Deleted!")
       navigate('/chats')
       console.log("Error Occured while deleteing this confo");
 
@@ -204,7 +204,7 @@ function ChatDetails({ showDetails, setShowDetails, userData }: ChatListProp) {
         </div>
 
         {/* Contact Information - Scrollable */}
-        <div className='flex-1 overflow-y-auto scrollbar-hide'>
+        <div className='flex-1 overflow-y-auto hide-scrollbar'>
           <div className='p-4 sm:p-6 space-y-6'>
             {/* About Section */}
             {userData.about && (

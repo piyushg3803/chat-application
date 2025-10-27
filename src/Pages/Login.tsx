@@ -45,7 +45,7 @@ function Login() {
 
                 {error && (
                     <div className='bg-red-900/20 border border-red-500 text-red-400 p-3 rounded-lg mb-6 text-sm'>
-                        Error occurred while loading the signup page
+                        Invalid Credentials Entered!
                     </div>
                 )}
 
