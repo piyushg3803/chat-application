@@ -190,7 +190,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
          }
       }
 
-      if (userData.displayName && userData.id) {
+      if (userData.id) {
          initializeChat();
       } else {
          console.log("Chat Could not be initialized");
@@ -205,6 +205,8 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
       let unsubscribe: (() => void) | undefined;
 
       const setupMessageListener = async () => {
+         console.log("Message listener called ");
+
          try {
             unsubscribe = listenMessages(chatRoomId, (newMessage: Message[]) => {
                console.log('Received Message:', newMessage);
