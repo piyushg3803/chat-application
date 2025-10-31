@@ -14,7 +14,7 @@ const firebaseConfig = {
   authDomain: import.meta.env.VITE_FB_AUTHDOMAIN,
   projectId: import.meta.env.VITE_FB_PROJECTID,
   storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_MESSSAGE_SENDER_ID,
+  messagingSenderId: import.meta.env.VITE_MESSAGE_SENDER_ID,
   appId: import.meta.env.VITE_APP_ID,
   measurementId: import.meta.env.VITE_MEASUREMENT_ID
 };
@@ -24,6 +24,9 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app)
 const auth = getAuth(app)
+
+console.log("Log from the firebaseConfig", firebaseConfig);
+
 
 getAuth().authStateReady();
 
