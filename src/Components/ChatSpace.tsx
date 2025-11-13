@@ -416,7 +416,7 @@ function ChatSpace({ userData, setShowDetails, showDetails, setShowChat }: ChatS
                                     hour: '2-digit',
                                     minute: '2-digit'
                                  })}
-                                 {message.senderId === currentUser?.uid && (message.seenBy.length > 1 && <img src="seen.png" alt="" className='w-3 h-3 mx-2' />)}
+                                 {message.senderId === currentUser?.uid && (message.seenBy.length > 1 && <img src="/seen.png" alt="" className='w-3 h-3 mx-2' />)}
                               </div>
                            </div>
                         ))}
